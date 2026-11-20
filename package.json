@@ -1,0 +1,21 @@
+{
+  "name": "stickies-ios",
+  "version": "1.0.0",
+  "description": "Stickies 复刻 —— iOS 版（Capacitor 封装，复用逆向研究的渲染层）",
+  "main": "index.js",
+  "scripts": {
+    "sync": "node scripts/build-www.js && npx cap sync ios",
+    "open:ios": "node scripts/build-www.js && npx cap open ios",
+    "build:web": "node scripts/build-www.js"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/core": "^6.2.3",
+    "@capacitor/ios": "^6.2.3",
+    "@capacitor/preferences": "^6.0.4",
+    "@capacitor/status-bar": "^6.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.3"
+  }
+}

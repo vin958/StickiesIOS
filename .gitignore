@@ -1,0 +1,10 @@
+node_modules/
+build/
+dist-app/
+.npm-cache/
+.spm-checkouts/
+.swiftpm-cache/
+.mod-cache/
+.DS_Store
+*.xcuserstate
+ios/App/App.xcodeproj/xcuserdata/
