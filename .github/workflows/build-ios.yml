@@ -9,6 +9,8 @@ jobs:
   build-ipa:
     name: Build & Export Stickies.ipa
     runs-on: macos-15          # macOS 15 runner（新版 Xcode）
+    permissions:
+      contents: write          # 允许把诊断日志提交回仓库
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -167,38 +169,16 @@ jobs:
           security import /tmp/cert.p12 -k "$KEYCHAIN" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild
           security set-key-partition-list -S apple-tool:,apple: -s -k temp "$KEYCHAIN"
 
-      # ── 把诊断日志提交回仓库（公开可读，无需 API 认证）────────────
-      - name: Commit diagnostics to repo
-        if: always()
-        run: |
-          set +e
-          mkdir -p .ci-logs
-          if [ -f build/certs/fastlane.log ]; then
-            cp build/certs/fastlane.log .ci-logs/fastlane.log
-          else
-            echo "no fastlane log produced" > .ci-logs/fastlane.log
-          fi
-          {
-            echo "run: ${GITHUB_RUN_ID}"
-            echo "commit: ${GITHUB_SHA}"
-            echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "apple_id_detected: ${{ steps.detect.outputs.has_apple_id }}"
-            echo "password_detected: ${{ steps.detect.outputs.has_password }}"
-            echo "cert_detected: ${{ steps.detect.outputs.has_cert }}"
-          } > .ci-logs/meta.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .ci-logs
-          git commit -m "ci: diagnostics for run ${GITHUB_RUN_ID}" 2>&1 | tail -2
-          git push origin HEAD:${{ github.ref_name }} 2>&1 | tail -3
-
       # ── 签名构建 + 导出 ipa ──
       - name: Build & export IPA (signed)
+        id: signbuild
         if: (steps.detect.outputs.has_apple_id == 'true' && steps.detect.outputs.has_password == 'true') || steps.detect.outputs.has_cert == 'true'
+        continue-on-error: true
         env:
           TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
-          set -e
+          mkdir -p build/logs
+          set +e
 
           # ExportOptions.plist —— method=development 是【导出选项】，不是 build action
           cat > /tmp/ExportOptions.plist <<PLIST
@@ -226,14 +206,42 @@ jobs:
             -archivePath "$RUNNER_TEMP/Stickies.xcarchive" \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="${TEAM_ID}" \
-            archive
+            archive > build/logs/archive.log 2>&1
+          ARC_RC=$?
+          echo "archive_rc=$ARC_RC" >> "$GITHUB_OUTPUT"
 
           # 第二步 exportArchive（导出 ipa）
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Stickies.xcarchive" \
             -exportPath "$RUNNER_TEMP/ipa" \
             -exportOptionsPlist /tmp/ExportOptions.plist \
-            -allowProvisioningUpdates
+            -allowProvisioningUpdates > build/logs/export.log 2>&1
+          EXP_RC=$?
+          echo "export_rc=$EXP_RC" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## 🏗️ 签名构建结果"
+            echo ""
+            echo "- archive 退出码: \`$ARC_RC\`"
+            echo "- export 退出码: \`$EXP_RC\`"
+            echo ""
+            echo "### archive.log 关键错误"
+            echo ""
+            echo '```'
+            grep -iE "error|failed|unable|denied|no account|provisioning|profile|signing" build/logs/archive.log 2>/dev/null | tail -30 || tail -30 build/logs/archive.log 2>/dev/null
+            echo '```'
+            echo ""
+            echo "### export.log 关键错误"
+            echo ""
+            echo '```'
+            tail -40 build/logs/export.log 2>/dev/null || echo "(无 export 日志)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ARC_RC" -ne 0 ] || [ "$EXP_RC" -ne 0 ]; then
+            echo "::error::archive/export 失败（archive=$ARC_RC export=$EXP_RC），详见 Job Summary"
+            exit 1
+          fi
 
       - name: Build unsigned IPA
         if: steps.detect.outputs.has_apple_id != 'true' && steps.detect.outputs.has_cert != 'true'
@@ -257,3 +265,38 @@ jobs:
           name: Stickies-ipa
           path: ${{ runner.temp }}/ipa/*.ipa
           if-no-files-found: error
+
+      # ── 把诊断日志提交回仓库（公开可读，无需 API 认证）────────────
+      # 放在最后：这样能同时拿到 fastlane / archive / export 三份日志
+      - name: Commit diagnostics to repo
+        if: always()
+        run: |
+          set +e
+          mkdir -p .ci-logs
+          if [ -f build/certs/fastlane.log ]; then
+            cp build/certs/fastlane.log .ci-logs/fastlane.log
+          else
+            echo "no fastlane log produced" > .ci-logs/fastlane.log
+          fi
+          for lg in archive export; do
+            if [ -f "build/logs/$lg.log" ]; then
+              cp "build/logs/$lg.log" ".ci-logs/$lg.log"
+            else
+              echo "no $lg log produced" > ".ci-logs/$lg.log"
+            fi
+          done
+          {
+            echo "run: ${GITHUB_RUN_ID}"
+            echo "commit: ${GITHUB_SHA}"
+            echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "apple_id_detected: ${{ steps.detect.outputs.has_apple_id }}"
+            echo "password_detected: ${{ steps.detect.outputs.has_password }}"
+            echo "cert_detected: ${{ steps.detect.outputs.has_cert }}"
+            echo "archive_rc: ${{ steps.signbuild.outputs.archive_rc }}"
+            echo "export_rc: ${{ steps.signbuild.outputs.export_rc }}"
+          } > .ci-logs/meta.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .ci-logs
+          git commit -m "ci: diagnostics for run ${GITHUB_RUN_ID}" 2>&1 | tail -2
+          git push origin HEAD:${{ github.ref_name }} 2>&1 | tail -3
