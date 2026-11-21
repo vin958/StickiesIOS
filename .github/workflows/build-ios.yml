@@ -115,41 +115,95 @@ jobs:
           FASTLANE_SKIP_UPDATE_CHECK: "true"
           FASTLANE_HIDE_CHANGELOG: "true"
           FASTLANE_OPT_OUT_USAGE: "true"
+          DEVICE_UDID: ${{ vars.DEVICE_UDID || '00008140-001C71913611801C' }}
+          DEVICE_NAME: ${{ vars.DEVICE_NAME || 'Stickies-CI-iPhone' }}
         run: |
           mkdir -p build/certs
-          echo "### fastlane cert development" >> build/certs/fastlane.log
+          LOG=build/certs/fastlane.log
+          : > "$LOG"
+
+          echo "### 0. Register device via spaceship ###" >> "$LOG"
+          cat > /tmp/register_device.rb <<'RUBY'
+          require 'spaceship'
+          udid = ENV['DEVICE_UDID']
+          name = ENV['DEVICE_NAME']
+          begin
+            Spaceship::Portal.login(
+              ENV['FASTLANE_USER'],
+              ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] || ENV['FASTLANE_PASSWORD']
+            )
+            puts "[spaceship] login ok"
+            devs = begin
+              Spaceship::Portal.device.all
+            rescue StandardError
+              Spaceship::Portal::Device.all
+            end
+            found = devs.find { |d| d['udid'] == udid }
+            if found
+              puts "[spaceship] device already registered: #{found['name']} (#{found['udid']})"
+            else
+              dev = Spaceship::Portal::Device.create!(name: name, udid: udid, platform: 'ios')
+              puts "[spaceship] device registered: #{dev['name']} (#{dev['udid']})"
+            end
+          rescue StandardError => e
+            puts "[spaceship] ERROR #{e.class}: #{e.message}"
+            exit 1
+          end
+          RUBY
+          ruby /tmp/register_device.rb >> "$LOG" 2>&1
+          DEV_RC=$?
+          echo "device_register_rc=$DEV_RC" >> "$GITHUB_OUTPUT"
+
+          echo "### 1. fastlane cert development ###" >> "$LOG"
           fastlane cert development \
             --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
-            --output_directory build/certs \
+            --output-path build/certs \
             --force \
-            >> build/certs/fastlane.log 2>&1
+            >> "$LOG" 2>&1
           CERT_RC=$?
-          echo "### fastlane sigh development" >> build/certs/fastlane.log
+          echo "cert_rc=$CERT_RC" >> "$GITHUB_OUTPUT"
+
+          echo "### 2. fastlane sigh development ###" >> "$LOG"
           fastlane sigh development \
             --bundle_id com.example.StickiesIOS \
             --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
             --output_path build/certs \
             --force \
-            >> build/certs/fastlane.log 2>&1
+            >> "$LOG" 2>&1
           SIGH_RC=$?
-          echo "cert_rc=$CERT_RC" >> "$GITHUB_OUTPUT"
           echo "sigh_rc=$SIGH_RC" >> "$GITHUB_OUTPUT"
 
+          # 找出刚生成的描述文件名字（手动签名需要 PROVISIONING_PROFILE_SPECIFIER）
+          PROFILE_NAME=""
+          for pf in "$HOME/Library/MobileDevice/Provisioning Profiles"/*.mobileprovision; do
+            [ -e "$pf" ] || continue
+            n=$(security cms -D -i "$pf" 2>/dev/null | plutil -extract Name raw - 2>/dev/null)
+            if [ -n "$n" ]; then PROFILE_NAME="$n"; break; fi
+          done
+          echo "profile_name=$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+          echo "profile_name_detected=$([ -n "$PROFILE_NAME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
           {
-            echo "## 🔐 fastlane 证书生成结果"
+            echo "## 🔐 证书/描述文件生成结果"
             echo ""
+            echo "- 设备注册退出码: \`$DEV_RC\`"
             echo "- fastlane cert 退出码: \`$CERT_RC\`"
             echo "- fastlane sigh 退出码: \`$SIGH_RC\`"
+            echo "- 描述文件名: \`${PROFILE_NAME:-（未找到）}\`"
             echo ""
-            echo "### 日志尾部"
-            echo ""
+            echo "### 签名身份"
             echo '```'
-            tail -60 build/certs/fastlane.log || true
+            security find-identity -v -p codesigning 2>&1
+            echo '```'
+            echo ""
+            echo "### 日志"
+            echo '```'
+            tail -80 "$LOG"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$CERT_RC" -ne 0 ] || [ "$SIGH_RC" -ne 0 ]; then
-            echo "::error::fastlane 证书/描述文件生成失败（cert=$CERT_RC sigh=$SIGH_RC），详见 Job Summary"
+          if [ "$CERT_RC" -ne 0 ] || [ "$SIGH_RC" -ne 0 ] || [ -z "$PROFILE_NAME" ]; then
+            echo "::error::证书/描述文件生成失败（cert=$CERT_RC sigh=$SIGH_RC profile=${PROFILE_NAME:-none}）"
             exit 1
           fi
 
@@ -176,6 +230,7 @@ jobs:
         continue-on-error: true
         env:
           TEAM_ID: ${{ secrets.TEAM_ID }}
+          PROFILE_NAME: ${{ steps.fastlane.outputs.profile_name }}
         run: |
           mkdir -p build/logs
           set +e
@@ -191,14 +246,19 @@ jobs:
             <key>teamID</key>
             <string>${TEAM_ID}</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>compileBitcode</key>
             <false/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.example.StickiesIOS</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
           </dict>
           </plist>
           PLIST
 
-          # 第一步 archive（构建 + 签名）
+          # 第一步 archive（构建 + 签名，手动指定描述文件）
           xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
@@ -206,6 +266,9 @@ jobs:
             -archivePath "$RUNNER_TEMP/Stickies.xcarchive" \
             -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="${TEAM_ID}" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME}" \
+            CODE_SIGN_IDENTITY="Apple Development" \
             archive > build/logs/archive.log 2>&1
           ARC_RC=$?
           echo "archive_rc=$ARC_RC" >> "$GITHUB_OUTPUT"
@@ -222,8 +285,14 @@ jobs:
           {
             echo "## 🏗️ 签名构建结果"
             echo ""
+            echo "- 使用的描述文件: \`${PROFILE_NAME:-（未指定）}\`"
             echo "- archive 退出码: \`$ARC_RC\`"
             echo "- export 退出码: \`$EXP_RC\`"
+            echo ""
+            echo "### 签名身份"
+            echo '```'
+            security find-identity -v -p codesigning 2>&1
+            echo '```'
             echo ""
             echo "### archive.log 关键错误"
             echo ""
