@@ -17,11 +17,11 @@ Checking out 6.2.2 of package ‘capacitor-swift-pm’
 
 
 Resolved source packages:
-  CapApp-SPM: /Users/runner/work/StickiesIOS/StickiesIOS/ios/App/CapApp-SPM @ local
-  CapacitorStatusBar: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/status-bar @ local
   CapacitorApp: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/app @ local
+  CapacitorStatusBar: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/status-bar @ local
   capacitor-swift-pm: https://github.com/ionic-team/capacitor-swift-pm.git @ 6.2.2
   CapacitorPreferences: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/preferences @ local
+  CapApp-SPM: /Users/runner/work/StickiesIOS/StickiesIOS/ios/App/CapApp-SPM @ local
 
 note: Using codesigning identity override: Apple Development
 ComputePackagePrebuildTargetDependencyGraph
@@ -92,14 +92,14 @@ ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/X
 
 ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/usr/bin/actool --version --output-format xml1
 
-Build description signature: d40fee6d2b759c386e13604288eb2fd3
-Build description path: /Users/runner/Library/Developer/Xcode/DerivedData/App-afoydmaaxhqgrsaudaklokabdmdf/Build/Intermediates.noindex/ArchiveIntermediates/App/IntermediateBuildFilesPath/XCBuildData/d40fee6d2b759c386e13604288eb2fd3.xcbuilddata
-note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'PreferencesPlugin' from project 'CapacitorPreferences')
-note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'StatusBarPlugin' from project 'CapacitorStatusBar')
-note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'CapApp-SPM' from project 'CapApp-SPM')
+Build description signature: d09e5f72b0800f8f385293b3e15221f1
+Build description path: /Users/runner/Library/Developer/Xcode/DerivedData/App-afoydmaaxhqgrsaudaklokabdmdf/Build/Intermediates.noindex/ArchiveIntermediates/App/IntermediateBuildFilesPath/XCBuildData/d09e5f72b0800f8f385293b3e15221f1.xcbuilddata
 /Users/runner/work/StickiesIOS/StickiesIOS/ios/App/App.xcodeproj: error: "App" requires a provisioning profile. Select a provisioning profile in the Signing & Capabilities editor. (in target 'App' from project 'App')
 note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-O, expected -Onone (in target 'App' from project 'App')
 note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'AppPlugin' from project 'CapacitorApp')
+note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'PreferencesPlugin' from project 'CapacitorPreferences')
+note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'CapApp-SPM' from project 'CapApp-SPM')
+note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'StatusBarPlugin' from project 'CapacitorStatusBar')
 ** ARCHIVE FAILED **
 
 

@@ -1,2 +1,45 @@
-### 0. Register device via spaceship ###
-[spaceship] ERROR Spaceship::InvalidUserCredentialsError: Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.
+[probe] user=houyawei@aliyun.com
+[probe] candidate_count=2
+[probe] FAIL app-specific (len=19): Spaceship::InvalidUserCredentialsError: Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.
+[probe] FAIL password (len=19): Spaceship::AppleTimeoutError: Apple 503 detected - this might be temporary server error, check https://developer.apple.com/system-status/ to see if there is a known downtime
+[probe] all password candidates failed
+### fastlane cert development ###
+[04:31:29]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[04:31:29]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+
++-----------------------------------------------------------------------------+
+|                          [32mSummary for cert 2.242.0[0m                           |
++-------------------------+---------------------------------------------------+
+| keychain_path           | /Users/runner/Library/Keychains/login.keychain-db |
+| force                   | true                                              |
+| development             | false                                             |
+| generate_apple_certs    | true                                              |
+| username                | houyawei@aliyun.com                               |
+| skip_set_partition_list | false                                             |
+| platform                | ios                                               |
++-------------------------+---------------------------------------------------+
+
+[04:31:30]: Starting login with user 'houyawei@aliyun.com'
+
+Looking for related GitHub issues on fastlane/fastlane...
+
+➡️  [33mBuild fails from second run after upgrading fastlane (503 error)[0m
+    https://github.com/fastlane/fastlane/issues/29919 [[31mopen[0m] 5 💬
+    31 Mar 2026
+
+➡️  [33mAction to inject a specific properties file to override one in an IPA?[0m
+    https://github.com/fastlane/fastlane/issues/503 [[32mclosed[0m] 3 💬
+    26 Sep 2016
+
+➡️  [33m503 while trying to call produce[0m
+    https://github.com/fastlane/fastlane/issues/29909 [[32mclosed[0m] 2 💬
+    19 Apr 2026
+
+🔗  You can ⌘ + double-click on links to open them directly in your browser.
+[31m
+[!] The request could not be completed because:
+	Apple 503 detected - this might be temporary server error, check https://developer.apple.com/system-status/ to see if there is a known downtime[0m
+### fastlane sigh development ###
+[04:31:44]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[04:31:44]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+invalid option: --bundle_id
