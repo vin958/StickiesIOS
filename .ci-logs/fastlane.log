@@ -4,12 +4,12 @@ len(APPLE_ID_PASSWORD)=19
 len(APPLE_PASSWORD)=0
 len(APPLE_APP_SPECIFIC_PASSWORD)=0
 session_present=no
-[probe] user=houyawei@aliyun.com candidates=apple-password
+[probe] user=houyawei@aliyun.com session=no candidates=apple-password
 [probe] FAIL apple-password len=19 attempt=1: Spaceship::InvalidUserCredentialsError: Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.
 [probe] all candidates failed
 ### fastlane cert --development ###
-[04:34:58]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:34:58]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:13:24]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:13:24]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 
 +-----------------------------------------------------------------------------+
 |                          [32mSummary for cert 2.242.0[0m                           |
@@ -23,7 +23,7 @@ session_present=no
 | platform                | ios                                               |
 +-------------------------+---------------------------------------------------+
 
-[04:34:58]: Starting login with user 'houyawei@aliyun.com'
+[08:13:24]: Starting login with user 'houyawei@aliyun.com'
 [31mThe login credentials for 'houyawei@aliyun.com' seem to be wrong[0m
 The password was taken from the environment variable
 Please make sure it is correct
@@ -37,8 +37,8 @@ Run `fastlane env` to append the fastlane environment to your issue
 [!] The request could not be completed because:
 	Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.[0m
 cert attempt 1 rc=1
-[04:35:31]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:35:31]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:13:57]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:13:57]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 
 +-----------------------------------------------------------------------------+
 |                          [32mSummary for cert 2.242.0[0m                           |
@@ -52,7 +52,7 @@ cert attempt 1 rc=1
 | platform                | ios                                               |
 +-------------------------+---------------------------------------------------+
 
-[04:35:32]: Starting login with user 'houyawei@aliyun.com'
+[08:13:57]: Starting login with user 'houyawei@aliyun.com'
 [31mThe login credentials for 'houyawei@aliyun.com' seem to be wrong[0m
 The password was taken from the environment variable
 Please make sure it is correct
@@ -66,8 +66,8 @@ Run `fastlane env` to append the fastlane environment to your issue
 [!] The request could not be completed because:
 	Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.[0m
 cert attempt 2 rc=1
-[04:36:34]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:36:34]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:15:00]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:15:00]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 
 +-----------------------------------------------------------------------------+
 |                          [32mSummary for cert 2.242.0[0m                           |
@@ -81,30 +81,29 @@ cert attempt 2 rc=1
 | platform                | ios                                               |
 +-------------------------+---------------------------------------------------+
 
-[04:36:36]: Starting login with user 'houyawei@aliyun.com'
-[31mThe login credentials for 'houyawei@aliyun.com' seem to be wrong[0m
-The password was taken from the environment variable
-Please make sure it is correct
+[08:15:00]: Starting login with user 'houyawei@aliyun.com'
 
 Looking for related GitHub issues on fastlane/fastlane...
 
-Found no similar issues. To create a new issue, please visit:
-https://github.com/fastlane/fastlane/issues/new
-Run `fastlane env` to append the fastlane environment to your issue
+➡️  [33mundefined method `unpack1' for nil (NoMethodError) in 2.225.0[0m
+    https://github.com/fastlane/fastlane/issues/26596 [[32mclosed[0m] 57 💬
+    18 Mar 2026
+
+🔗  You can ⌘ + double-click on links to open them directly in your browser.
 [31m
-[!] The request could not be completed because:
-	Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.[0m
+[!] Apple provided the following error info:
+	(-900007)[0m
 cert attempt 3 rc=1
 ### fastlane sigh --app_identifier ###
-[04:38:09]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:38:09]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:16:32]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:16:32]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 invalid option: --keychain_path
 sigh attempt 1 rc=1
-[04:38:42]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:38:42]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:17:03]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:17:03]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 invalid option: --keychain_path
 sigh attempt 2 rc=1
-[04:39:43]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:39:43]: fastlane 2.242.0 (Ruby 3.3.13, gem)
+[08:18:04]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+[08:18:04]: fastlane 2.242.0 (Ruby 3.3.13, gem)
 invalid option: --keychain_path
 sigh attempt 3 rc=1
