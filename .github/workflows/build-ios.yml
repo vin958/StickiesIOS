@@ -75,6 +75,24 @@ jobs:
           echo "p12 证书:     $([ -n "$CERT_VALUE" ] && echo '✅ 有' || echo '❌ 无')"
           echo "（提示：Secret 不可见属正常，这里只看长度非 0）"
 
+          # 写入 Job Summary（任何人都可见，便于诊断）
+          {
+            echo "## 🔐 签名材料探测结果"
+            echo ""
+            echo "| 项目 | 状态 |"
+            echo "|---|---|"
+            echo "| Apple ID 凭据 | $([ -n "$ID_VALUE" ] && echo '✅ 已配置' || echo '❌ 缺失') |"
+            echo "| 密码 | $([ -n "$PW_VALUE" ] && echo '✅ 已配置' || echo '❌ 缺失') |"
+            echo "| p12 证书 | $([ -n "$CERT_VALUE" ] && echo '✅ 已配置' || echo '❌ 缺失') |"
+            echo ""
+            echo "若全部缺失，请在仓库 Settings → Secrets and variables → Actions 添加（名称任选其一即可被自动识别）："
+            echo ""
+            echo "- Apple ID：\`APPLE_ID\` / \`APPLE_ID_USER\` / \`APPLE_EMAIL\` / \`APPLE_USERNAME\`"
+            echo "- 密码：\`APPLE_ID_PASSWORD\` / \`APPLE_PASSWORD\` / \`APPLE_APP_SPECIFIC_PASSWORD\`"
+            echo "- Team：\`TEAM_ID\`"
+            echo "- 或 p12：\`CERTIFICATE_BASE64\` + \`CERTIFICATE_PASSWORD\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Install fastlane
         if: steps.detect.outputs.has_apple_id == 'true'
         run: |
