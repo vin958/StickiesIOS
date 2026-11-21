@@ -108,8 +108,9 @@ jobs:
         continue-on-error: true
         env:
           FASTLANE_USER: ${{ steps.detect.outputs.apple_id }}
-          FASTLANE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD || secrets.APPLE_PASSWORD || secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD || secrets.APPLE_PASSWORD || secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          RAW_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          RAW_APPLE_PASSWORD2: ${{ secrets.APPLE_PASSWORD }}
+          RAW_APP_SPECIFIC: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
           FASTLANE_TEAM_ID: ${{ secrets.TEAM_ID }}
           FASTLANE_SKIP_UPDATE_CHECK: "true"
@@ -123,37 +124,61 @@ jobs:
           LOG=build/certs/fastlane.log
           : > "$LOG"
 
-          # ── 0. 认证探测：找出哪种凭据能通过 spaceship 登录 ──
+          # ── 0. 规范化凭据（去空白）──
+          clean() { printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+          APPLE_PW="$(clean "$RAW_APPLE_PASSWORD")"
+          APPLE_PW2="$(clean "$RAW_APPLE_PASSWORD2")"
+          APP_SPECIFIC="$(clean "$RAW_APP_SPECIFIC")"
+          export FASTLANE_PASSWORD="$APPLE_PW"
+          export FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD="$APP_SPECIFIC"
+
+          {
+            echo "### 0. Credential probe ###"
+            echo "user=$FASTLANE_USER"
+            echo "len(APPLE_ID_PASSWORD)=${#APPLE_PW}"
+            echo "len(APPLE_PASSWORD)=${#APPLE_PW2}"
+            echo "len(APPLE_APP_SPECIFIC_PASSWORD)=${#APP_SPECIFIC}"
+            echo "session_present=$([ -n "$FASTLANE_SESSION" ] && echo yes || echo no)"
+          } >> "$LOG"
+
+          # ── 1. 认证 + 设备注册（503 退避重试）──
           cat > /tmp/auth_probe.rb <<'RUBY'
           require 'spaceship'
           require 'fastlane_core'
 
           user = ENV['FASTLANE_USER']
-          candidates = []
-          candidates << ['app-specific', ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD']] if ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] && !ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'].empty?
-          candidates << ['password', ENV['FASTLANE_PASSWORD']] if ENV['FASTLANE_PASSWORD'] && !ENV['FASTLANE_PASSWORD'].empty?
+          cands = []
+          cands << ['app-specific', ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD']] if ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] && !ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'].empty?
+          cands << ['apple-password', ENV['FASTLANE_PASSWORD']] if ENV['FASTLANE_PASSWORD'] && !ENV['FASTLANE_PASSWORD'].empty?
+          cands = cands.uniq { |(_l, v)| v }   # 不同 secret 可能存了同一个值
 
-          puts "[probe] user=#{user}"
-          puts "[probe] candidate_count=#{candidates.size}"
+          puts "[probe] user=#{user} candidates=#{cands.map(&:first).join(',')}"
 
-          ok = false
-          candidates.each do |label, pw|
-            begin
-              Spaceship::Portal.login(user, pw)
-              puts "[probe] SUCCESS with #{label} (len=#{pw.length})"
-              ok = true
-              break
-            rescue StandardError => e
-              puts "[probe] FAIL #{label} (len=#{pw.length}): #{e.class}: #{e.message}"
+          logged_in = false
+          cands.each do |label, pw|
+            3.times do |attempt|
+              begin
+                Spaceship::Portal.login(user, pw)
+                puts "[probe] SUCCESS #{label} len=#{pw.length} attempt=#{attempt + 1}"
+                logged_in = true
+                break
+              rescue Spaceship::AppleTimeoutError => e
+                puts "[probe] 503-throttle #{label} attempt=#{attempt + 1}: #{e.message}"
+                sleep(30 * (attempt + 1))
+              rescue StandardError => e
+                puts "[probe] FAIL #{label} len=#{pw.length} attempt=#{attempt + 1}: #{e.class}: #{e.message}"
+                break
+              end
             end
+            break if logged_in
           end
 
-          unless ok
-            puts '[probe] all password candidates failed'
+          unless logged_in
+            puts '[probe] all candidates failed'
             exit 1
           end
 
-          # ── 设备注册（development 描述文件必须包含设备 UDID）──
+          # 设备注册（development 描述文件必须包含设备 UDID）
           udid = ENV['DEVICE_UDID']
           name = ENV['DEVICE_NAME']
           begin
@@ -173,25 +198,38 @@ jobs:
           AUTH_RC=$?
           echo "auth_rc=$AUTH_RC" >> "$GITHUB_OUTPUT"
 
-          # ── 1. fastlane cert development ──
-          echo "### fastlane cert development ###" >> "$LOG"
-          fastlane cert development \
-            --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
-            --output-path build/certs \
-            --force \
-            >> "$LOG" 2>&1
-          CERT_RC=$?
+          # ── 2. fastlane cert --development ──
+          echo "### fastlane cert --development ###" >> "$LOG"
+          CERT_RC=1
+          for i in 1 2 3; do
+            fastlane cert \
+              --development \
+              --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
+              --output-path build/certs \
+              --force \
+              >> "$LOG" 2>&1
+            CERT_RC=$?
+            echo "cert attempt $i rc=$CERT_RC" >> "$LOG"
+            [ "$CERT_RC" -eq 0 ] && break
+            sleep $((i * 30))
+          done
           echo "cert_rc=$CERT_RC" >> "$GITHUB_OUTPUT"
 
-          # ── 2. fastlane sigh development ──
-          echo "### fastlane sigh development ###" >> "$LOG"
-          fastlane sigh development \
-            --bundle_id com.example.StickiesIOS \
-            --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
-            --output_path build/certs \
-            --force \
-            >> "$LOG" 2>&1
-          SIGH_RC=$?
+          # ── 3. fastlane sigh --app_identifier ──
+          echo "### fastlane sigh --app_identifier ###" >> "$LOG"
+          SIGH_RC=1
+          for i in 1 2 3; do
+            fastlane sigh \
+              --app_identifier com.example.StickiesIOS \
+              --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
+              --output_path build/certs \
+              --force \
+              >> "$LOG" 2>&1
+            SIGH_RC=$?
+            echo "sigh attempt $i rc=$SIGH_RC" >> "$LOG"
+            [ "$SIGH_RC" -eq 0 ] && break
+            sleep $((i * 30))
+          done
           echo "sigh_rc=$SIGH_RC" >> "$GITHUB_OUTPUT"
 
           # 找出刚生成的描述文件名字（手动签名需要 PROVISIONING_PROFILE_SPECIFIER）
