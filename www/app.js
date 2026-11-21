@@ -153,13 +153,16 @@
   }
 
   // ─── 搜索 ───
+  // 注意：iOS WKWebView 默认禁用 window.prompt()，必须用应用内自绘搜索条
   let searchMode = false;
-  searchBtn.addEventListener('click', () => {
-    const q = prompt('搜索便签内容（回车确认）：');
-    if (!q) { render(); return; }
+  const searchBar = document.getElementById('searchBar');
+  const searchInput = document.getElementById('searchInput');
+  const searchCancel = document.getElementById('searchCancel');
+
+  function applySearch(q) {
+    const kw = (q || '').trim().toLowerCase();
+    if (!kw) { searchMode = false; render(); return; }
     searchMode = true;
-    editModeBtn.textContent = '✔ 完成';
-    const kw = q.toLowerCase();
     const results = notes.filter(n =>
       (n.text || '').toLowerCase().includes(kw) || (n.title || '').toLowerCase().includes(kw));
     wall.innerHTML = '';
@@ -171,12 +174,32 @@
         const card = document.createElement('div');
         card.className = 'card ' + (COLORS[n.colorKey] ? n.colorKey : 'yellow');
         card.innerHTML = `<div class="spine"></div><div class="title">${escapeHtml(n.title || '便签')}</div><div class="preview">${escapeHtml(stripHtml(n.text).slice(0, 80) || '(空白)')}</div>`;
-        card.addEventListener('click', () => { render(); openEdit(i); });
+        card.addEventListener('click', () => { closeSearch(); openEdit(i); });
         wall.appendChild(card);
       });
     }
-    editModeBtn.textContent = '✏️';  // 搜索结果即点即开，暂不复原按钮文本
-    setTimeout(() => { searchMode = false; editModeBtn.textContent = '✏️'; render(); }, 30000); // 30s 后自动退出搜索
+    editModeBtn.textContent = '✏️';
+  }
+
+  function openSearch() {
+    searchBar.classList.add('open');
+    searchInput.value = '';
+    searchInput.focus();
+    applySearch('');
+  }
+  function closeSearch() {
+    searchBar.classList.remove('open');
+    searchInput.value = '';
+    searchMode = false;
+    render();
+  }
+
+  searchBtn.addEventListener('click', openSearch);
+  searchCancel.addEventListener('click', closeSearch);
+  searchInput.addEventListener('input', () => applySearch(searchInput.value));
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); searchInput.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
   });
 
   // 编辑/整理模式：长按进入删除（简化说明见 README）

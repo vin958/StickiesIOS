@@ -47,6 +47,7 @@ jobs:
           CERTIFICATE_BASE64: ${{ secrets.CERTIFICATE_BASE64 }}
           CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
           DEV_CERT_BASE64: ${{ secrets.DEV_CERT_BASE64 }}
+          FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
         run: |
           set -e
           # 选出第一个非空的 Apple ID
@@ -64,16 +65,21 @@ jobs:
           for v in "$CERTIFICATE_BASE64" "$CERT_P12_BASE64" "$DEV_CERT_BASE64"; do
             if [ -n "$v" ]; then CERT_VALUE="$v"; break; fi
           done
+          # FASTLANE_SESSION：spaceauth 手动 2FA 登录产生的会话
+          # 官方文档：app-specific 密码【不能】用于 cert/sigh，必须用 session 或普通密码+2FA
+          SESSION_VALUE="$FASTLANE_SESSION"
 
           {
             echo "apple_id=${ID_VALUE}"
             echo "has_apple_id=$([ -n "$ID_VALUE" ] && echo true || echo false)"
             echo "has_password=$([ -n "$PW_VALUE" ] && echo true || echo false)"
             echo "has_cert=$([ -n "$CERT_VALUE" ] && echo true || echo false)"
+            echo "has_session=$([ -n "$SESSION_VALUE" ] && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
 
           echo "Apple ID 凭据: $([ -n "$ID_VALUE" ] && echo '✅ 有' || echo '❌ 无')"
           echo "密码:         $([ -n "$PW_VALUE" ] && echo '✅ 有' || echo '❌ 无')"
+          echo "FASTLANE_SESSION: $([ -n "$SESSION_VALUE" ] && echo '✅ 有' || echo '❌ 无')"
           echo "p12 证书:     $([ -n "$CERT_VALUE" ] && echo '✅ 有' || echo '❌ 无')"
           echo "（提示：Secret 不可见属正常，这里只看长度非 0）"
 
@@ -96,15 +102,16 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install fastlane
-        if: steps.detect.outputs.has_apple_id == 'true'
+        if: steps.detect.outputs.has_apple_id == 'true' || steps.detect.outputs.has_session == 'true'
         run: |
+          set +e
           sudo gem install fastlane -N --no-document
           fastlane --version
 
       # ── 方式 A：Apple ID 自动生成证书+描述文件（私钥在 CI 本地创建）──
       - name: Generate cert & profile via Apple ID
         id: fastlane
-        if: steps.detect.outputs.has_apple_id == 'true' && steps.detect.outputs.has_password == 'true'
+        if: (steps.detect.outputs.has_apple_id == 'true' && steps.detect.outputs.has_password == 'true') || steps.detect.outputs.has_session == 'true'
         continue-on-error: true
         env:
           FASTLANE_USER: ${{ steps.detect.outputs.apple_id }}
@@ -142,35 +149,57 @@ jobs:
           } >> "$LOG"
 
           # ── 1. 认证 + 设备注册（503 退避重试）──
+          # 重要：app-specific 密码【无法】用于 cert/sigh（Apple 限制）。
+          #      优先级：FASTLANE_SESSION > 普通密码（会触发 2FA，CI 上需 session）
+          #               > app-specific（仅上传可用）
           cat > /tmp/auth_probe.rb <<'RUBY'
           require 'spaceship'
           require 'fastlane_core'
 
           user = ENV['FASTLANE_USER']
+          session = ENV['FASTLANE_SESSION'].to_s
+
+          # ── 情况 1：已配置 FASTLANE_SESSION（官方推荐，绕过 app-specific 限制）──
+          if !session.empty?
+            puts '[probe] FASTLANE_SESSION present, verifying session instead of password login'
+            begin
+              Spaceship::Portal.cookies
+              teams = Spaceship::Portal.teams
+              puts "[probe] SESSION SUCCESS teams=#{teams.map { |t| t['name'] }.join(',')}"
+              logged_in = true
+            rescue StandardError => e
+              puts "[probe] SESSION FAIL #{e.class}: #{e.message}"
+              logged_in = false
+            end
+          else
+            logged_in = false
+          end
+
           cands = []
-          cands << ['app-specific', ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD']] if ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] && !ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'].empty?
           cands << ['apple-password', ENV['FASTLANE_PASSWORD']] if ENV['FASTLANE_PASSWORD'] && !ENV['FASTLANE_PASSWORD'].empty?
+          cands << ['app-specific', ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD']] if ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] && !ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'].empty?
           cands = cands.uniq { |(_l, v)| v }   # 不同 secret 可能存了同一个值
 
-          puts "[probe] user=#{user} candidates=#{cands.map(&:first).join(',')}"
+          puts "[probe] user=#{user} session=#{session.empty? ? 'no' : 'yes'} candidates=#{cands.map(&:first).join(',')}"
 
-          logged_in = false
-          cands.each do |label, pw|
-            3.times do |attempt|
-              begin
-                Spaceship::Portal.login(user, pw)
-                puts "[probe] SUCCESS #{label} len=#{pw.length} attempt=#{attempt + 1}"
-                logged_in = true
-                break
-              rescue Spaceship::AppleTimeoutError => e
-                puts "[probe] 503-throttle #{label} attempt=#{attempt + 1}: #{e.message}"
-                sleep(30 * (attempt + 1))
-              rescue StandardError => e
-                puts "[probe] FAIL #{label} len=#{pw.length} attempt=#{attempt + 1}: #{e.class}: #{e.message}"
-                break
+          unless logged_in
+            cands.each do |label, pw|
+              3.times do |attempt|
+                begin
+                  Spaceship::Portal.login(user, pw)
+                  puts "[probe] SUCCESS #{label} len=#{pw.length} attempt=#{attempt + 1}"
+                  logged_in = true
+                  break
+                rescue Spaceship::AppleTimeoutError => e
+                  puts "[probe] 503-throttle #{label} attempt=#{attempt + 1}: #{e.message}"
+                  sleep(30 * (attempt + 1))
+                rescue StandardError => e
+                  puts "[probe] FAIL #{label} len=#{pw.length} attempt=#{attempt + 1}: #{e.class}: #{e.message}"
+                  break
+                end
               end
+              break if logged_in
             end
-            break if logged_in
           end
 
           unless logged_in
