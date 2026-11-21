@@ -1,0 +1,8 @@
+run: 44865729489
+commit: 79d9b5eb7ddb419cbc6e9f92472af7d258148ea2
+date: 2026-11-21T04:22:45Z
+apple_id_detected: true
+password_detected: true
+cert_detected: false
+archive_rc: 65
+export_rc: 65
