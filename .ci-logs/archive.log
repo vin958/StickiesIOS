@@ -1,8 +1,11 @@
 Command line invocation:
-    /Applications/Xcode_16.4.app/Contents/Developer/usr/bin/xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination generic/platform=iOS -archivePath /Users/runner/work/_temp/Stickies.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=C65ST4M6GP archive
+    /Applications/Xcode_16.4.app/Contents/Developer/usr/bin/xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination generic/platform=iOS -archivePath /Users/runner/work/_temp/Stickies.xcarchive -allowProvisioningUpdates DEVELOPMENT_TEAM=C65ST4M6GP CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER= "CODE_SIGN_IDENTITY=Apple Development" archive
 
 Build settings from command line:
+    CODE_SIGN_IDENTITY = Apple Development
+    CODE_SIGN_STYLE = Manual
     DEVELOPMENT_TEAM = C65ST4M6GP
+    PROVISIONING_PROFILE_SPECIFIER = 
 
 Resolve Package Graph
 
@@ -14,12 +17,13 @@ Checking out 6.2.2 of package ‘capacitor-swift-pm’
 
 
 Resolved source packages:
-  CapacitorStatusBar: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/status-bar @ local
-  capacitor-swift-pm: https://github.com/ionic-team/capacitor-swift-pm.git @ 6.2.2
-  CapacitorApp: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/app @ local
-  CapacitorPreferences: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/preferences @ local
   CapApp-SPM: /Users/runner/work/StickiesIOS/StickiesIOS/ios/App/CapApp-SPM @ local
+  CapacitorStatusBar: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/status-bar @ local
+  CapacitorApp: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/app @ local
+  capacitor-swift-pm: https://github.com/ionic-team/capacitor-swift-pm.git @ 6.2.2
+  CapacitorPreferences: /Users/runner/work/StickiesIOS/StickiesIOS/node_modules/@capacitor/preferences @ local
 
+note: Using codesigning identity override: Apple Development
 ComputePackagePrebuildTargetDependencyGraph
 
 Prepare packages
@@ -88,14 +92,13 @@ ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/X
 
 ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/usr/bin/actool --version --output-format xml1
 
-Build description signature: 684490d5ac7da9fadb602157a75a7d90
-Build description path: /Users/runner/Library/Developer/Xcode/DerivedData/App-afoydmaaxhqgrsaudaklokabdmdf/Build/Intermediates.noindex/ArchiveIntermediates/App/IntermediateBuildFilesPath/XCBuildData/684490d5ac7da9fadb602157a75a7d90.xcbuilddata
+Build description signature: d40fee6d2b759c386e13604288eb2fd3
+Build description path: /Users/runner/Library/Developer/Xcode/DerivedData/App-afoydmaaxhqgrsaudaklokabdmdf/Build/Intermediates.noindex/ArchiveIntermediates/App/IntermediateBuildFilesPath/XCBuildData/d40fee6d2b759c386e13604288eb2fd3.xcbuilddata
 note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'PreferencesPlugin' from project 'CapacitorPreferences')
-note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'CapApp-SPM' from project 'CapApp-SPM')
-/Users/runner/work/StickiesIOS/StickiesIOS/ios/App/App.xcodeproj: error: No Accounts: Add a new account in Accounts settings. (in target 'App' from project 'App')
-/Users/runner/work/StickiesIOS/StickiesIOS/ios/App/App.xcodeproj: error: No profiles for 'com.example.StickiesIOS' were found: Xcode couldn't find any iOS App Development provisioning profiles matching 'com.example.StickiesIOS'. (in target 'App' from project 'App')
-note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-O, expected -Onone (in target 'App' from project 'App')
 note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'StatusBarPlugin' from project 'CapacitorStatusBar')
+note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'CapApp-SPM' from project 'CapApp-SPM')
+/Users/runner/work/StickiesIOS/StickiesIOS/ios/App/App.xcodeproj: error: "App" requires a provisioning profile. Select a provisioning profile in the Signing & Capabilities editor. (in target 'App' from project 'App')
+note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-O, expected -Onone (in target 'App' from project 'App')
 note: Disabling previews because SWIFT_VERSION is set and SWIFT_OPTIMIZATION_LEVEL=-Owholemodule, expected -Onone (in target 'AppPlugin' from project 'CapacitorApp')
 ** ARCHIVE FAILED **
 

@@ -1,5 +1,2 @@
-### fastlane cert development
-[04:22:09]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
-[04:22:09]: fastlane 2.242.0 (Ruby 3.3.13, gem)
-invalid option: --output_directory
-Did you mean?  output-path
+### 0. Register device via spaceship ###
+[spaceship] ERROR Spaceship::InvalidUserCredentialsError: Invalid username and password combination. Used 'houyawei@aliyun.com' as the username.
