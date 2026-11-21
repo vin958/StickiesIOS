@@ -118,43 +118,63 @@ jobs:
           DEVICE_UDID: ${{ vars.DEVICE_UDID || '00008140-001C71913611801C' }}
           DEVICE_NAME: ${{ vars.DEVICE_NAME || 'Stickies-CI-iPhone' }}
         run: |
+          set +e          # 关键：GitHub Actions 默认 set -e，某步失败会中断整个脚本
           mkdir -p build/certs
           LOG=build/certs/fastlane.log
           : > "$LOG"
 
-          echo "### 0. Register device via spaceship ###" >> "$LOG"
-          cat > /tmp/register_device.rb <<'RUBY'
+          # ── 0. 认证探测：找出哪种凭据能通过 spaceship 登录 ──
+          cat > /tmp/auth_probe.rb <<'RUBY'
           require 'spaceship'
+          require 'fastlane_core'
+
+          user = ENV['FASTLANE_USER']
+          candidates = []
+          candidates << ['app-specific', ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD']] if ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] && !ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'].empty?
+          candidates << ['password', ENV['FASTLANE_PASSWORD']] if ENV['FASTLANE_PASSWORD'] && !ENV['FASTLANE_PASSWORD'].empty?
+
+          puts "[probe] user=#{user}"
+          puts "[probe] candidate_count=#{candidates.size}"
+
+          ok = false
+          candidates.each do |label, pw|
+            begin
+              Spaceship::Portal.login(user, pw)
+              puts "[probe] SUCCESS with #{label} (len=#{pw.length})"
+              ok = true
+              break
+            rescue StandardError => e
+              puts "[probe] FAIL #{label} (len=#{pw.length}): #{e.class}: #{e.message}"
+            end
+          end
+
+          unless ok
+            puts '[probe] all password candidates failed'
+            exit 1
+          end
+
+          # ── 设备注册（development 描述文件必须包含设备 UDID）──
           udid = ENV['DEVICE_UDID']
           name = ENV['DEVICE_NAME']
           begin
-            Spaceship::Portal.login(
-              ENV['FASTLANE_USER'],
-              ENV['FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD'] || ENV['FASTLANE_PASSWORD']
-            )
-            puts "[spaceship] login ok"
-            devs = begin
-              Spaceship::Portal.device.all
-            rescue StandardError
-              Spaceship::Portal::Device.all
-            end
+            devs = Spaceship::Portal.device.all
             found = devs.find { |d| d['udid'] == udid }
             if found
-              puts "[spaceship] device already registered: #{found['name']} (#{found['udid']})"
+              puts "[device] already registered: #{found['name']} (#{found['udid']})"
             else
-              dev = Spaceship::Portal::Device.create!(name: name, udid: udid, platform: 'ios')
-              puts "[spaceship] device registered: #{dev['name']} (#{dev['udid']})"
+              dev = Spaceship::Portal.device.create!(name: name, udid: udid, platform: 'ios')
+              puts "[device] registered: #{dev['name']} (#{dev['udid']})"
             end
           rescue StandardError => e
-            puts "[spaceship] ERROR #{e.class}: #{e.message}"
-            exit 1
+            puts "[device] ERROR #{e.class}: #{e.message}"
           end
           RUBY
-          ruby /tmp/register_device.rb >> "$LOG" 2>&1
-          DEV_RC=$?
-          echo "device_register_rc=$DEV_RC" >> "$GITHUB_OUTPUT"
+          ruby /tmp/auth_probe.rb >> "$LOG" 2>&1
+          AUTH_RC=$?
+          echo "auth_rc=$AUTH_RC" >> "$GITHUB_OUTPUT"
 
-          echo "### 1. fastlane cert development ###" >> "$LOG"
+          # ── 1. fastlane cert development ──
+          echo "### fastlane cert development ###" >> "$LOG"
           fastlane cert development \
             --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
             --output-path build/certs \
@@ -163,7 +183,8 @@ jobs:
           CERT_RC=$?
           echo "cert_rc=$CERT_RC" >> "$GITHUB_OUTPUT"
 
-          echo "### 2. fastlane sigh development ###" >> "$LOG"
+          # ── 2. fastlane sigh development ──
+          echo "### fastlane sigh development ###" >> "$LOG"
           fastlane sigh development \
             --bundle_id com.example.StickiesIOS \
             --keychain_path "$HOME/Library/Keychains/login.keychain-db" \
@@ -186,7 +207,7 @@ jobs:
           {
             echo "## 🔐 证书/描述文件生成结果"
             echo ""
-            echo "- 设备注册退出码: \`$DEV_RC\`"
+            echo "- 认证退出码: \`$AUTH_RC\`"
             echo "- fastlane cert 退出码: \`$CERT_RC\`"
             echo "- fastlane sigh 退出码: \`$SIGH_RC\`"
             echo "- 描述文件名: \`${PROFILE_NAME:-（未找到）}\`"
